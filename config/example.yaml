@@ -1,0 +1,8 @@
+ros_distro: noetic
+test: true
+generate_binaries: true
+
+external_packages:
+  - name: boxer_simulation
+    url: https://github.com/boxer-cpr/boxer_simulator.git
+    branch: noetic-devel

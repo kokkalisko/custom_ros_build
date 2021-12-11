@@ -1,0 +1,15 @@
+FROM ros:{{ ros_distro }}-ros-core
+
+# Install rosdep and build-essential
+RUN apt-get update
+RUN apt-get install -y build-essential python3-rosdep
+
+# ADD diakinisis_room /home/vital_gazebo_ws/src/diakinisis_room
+# WORKDIR /home/vital_gazebo_ws/
+
+# Install ROS dependencies
+RUN rosdep init && rosdep update
+RUN rosdep install --from-paths src --ignore-src -r -y
+
+# Build packages
+RUN . /opt/ros/{{ ros_distro }}/setup.sh && catkin_make
