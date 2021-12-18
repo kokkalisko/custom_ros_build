@@ -1,0 +1,27 @@
+#!/usr/bin/env sh
+
+# fail script if any single command fails
+set -e
+
+echo "###################
+
+Build the packages
+
+###################"
+catkin_make_isolated
+
+
+{% if test -%}
+. devel_isolated/setup.sh
+
+echo "###################
+
+Test (only) the workspace packages
+
+###################"
+{% for package in workspace_packages %}
+echo "Tests for package {{ workspace_packages[package].name }}"
+catkin_make_isolated --pkg {{ workspace_packages[package].name }} --catkin-make-args run_tests | tee -a test.log
+{% endfor %}
+
+{% endif %}

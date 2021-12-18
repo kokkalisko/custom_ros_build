@@ -1,6 +1,0 @@
-#!/usr/bin/env sh
-
-# fail script if any single command fails
-set -e
-
-echo "ROS_DISTRO: {{ distro }}"

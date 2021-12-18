@@ -1,0 +1,48 @@
+#!/usr/bin/env sh
+
+# fail script if any single command fails
+set -e
+
+echo "Build the image that will be used for package building, testing and binaries generation"
+
+echo "###################
+
+Get the external packages if any exists
+
+###################"
+{% for git_repo in external_packages %}
+cd {{ workspace_folder }}/src
+
+echo "Get external package {{git_repo['name']}}"
+git clone {{ git_repo['url'] }} {{ git_repo['name'] }}
+cd {{ git_repo['name'] }}
+
+echo "Checkout to branch {{ git_repo['branch'] }}"
+git checkout {{ git_repo['branch'] }}
+{% endfor %}
+
+echo "###################
+
+Build the docker image
+
+###################"
+cd {{ workspace_folder }}
+docker build -f {{ destination_folder }}/build_test.Dockerfile -t custom_ros_build:latest .
+
+echo "###################
+
+Cleanup
+
+###################"
+cd {{ workspace_folder }}/src
+
+{% for git_repo in external_packages %}
+rm -rf {{ git_repo['name'] }}
+{% endfor %}
+
+echo "###################
+
+Build and test packages
+
+###################"
+docker run -v {{ destination_folder }}:/tmp/custom_ros_build/scripts custom_ros_build:latest ./scripts/build_test_script.sh

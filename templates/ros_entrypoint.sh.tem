@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# fail script if any single command fails
+set -e
+
+# setup ros environment
+echo "Source the pre-built binaries"
+source /opt/ros/{{ ros_distro }}/setup.bash
+
+exec "$@"

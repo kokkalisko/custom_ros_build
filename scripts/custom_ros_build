@@ -1,0 +1,120 @@
+#!/usr/bin/env python3
+
+from catkin_pkg.packages import find_packages
+from generate_build_test import generate_build_test_process
+from configuration_functions import *
+from render_templates import generate_rendered_template
+
+import yaml
+
+import os
+import sys
+import argparse
+
+# Setup the parser
+def parse_args(args=sys.argv[1:]):
+    parser = argparse.ArgumentParser(description=('Generates the debian binaries of packages existing '
+                                                  'inside the workspace'))
+    parser.add_argument('-f', '--config-file', default=os.path.join(os.getcwd(), 'src', 'config.yaml'),
+                        help='The path of the configuration file')
+    parser.add_argument('-d', '--destination-folder', default=os.path.join(os.getcwd(), 'generated_files'),
+                        help='The path of the destination folder')
+    parser.add_argument('-w', '--workspace-folder', default=os.path.join(os.getcwd()),
+                        help='The path of the workspace folder that contains all the packages to be')
+
+    namespace, unknown_args = parser.parse_known_args(args)
+    return namespace
+
+# TODO: currently not used
+# Get the paths of the source code of the packages existing in the workspace
+def get_workspace_packages():
+    cwd = os.getenv('PWD', os.curdir)
+    source_path = os.path.join(cwd, 'src')
+
+    return find_packages(source_path)
+
+def process_destination_folder(destination_folder_path: str, workspace_folder_path: str):
+    if not os.path.exists(destination_folder_path):
+        print(f'Destination folder path {destination_folder_path} does not exist')
+        print('Destination folder will be created')
+        os.mkdir(destination_folder_path)
+
+    # Find the relative position of the destination folder wrt to the workspace folder
+    destination_folder_workspace_relative = os.path.relpath(destination_folder_path, workspace_folder_path)
+
+    destination_folder_dict = {'destination_folder': destination_folder_path, 
+                               'destination_folder_workspace_relative': destination_folder_workspace_relative}
+    
+    return destination_folder_dict
+
+def process_workspace_folder(workspace_folder_path: str):
+    workspace_dict = {'workspace_folder': None, 'workspace_packages': None}
+    # Check if the workspace folder exist
+    if not os.path.exists(workspace_folder_path):
+        print(f'Workspace folder path {workspace_folder_path} does not exist')
+        print('No packages from local workspace will be used')
+        return workspace_dict
+
+    # Check for a src folder
+    src_folder_path = os.path.join(workspace_folder_path, 'src')
+    if not os.path.exists(src_folder_path):
+        print('Workspace does not contain a src folder')
+        return workspace_dict
+    
+    # Check if the src folder contains any packages
+    workspace_packages = find_packages(src_folder_path)
+    
+    if len(workspace_packages) == 0:
+        print('Workspace does not contain any packages')
+        return workspace_dict
+    
+    print('Existing valid workspace packages: ')
+    for package in workspace_packages:
+        print(f'\t{workspace_packages[package].name}')
+    
+    workspace_dict['workspace_folder'] = workspace_folder_path
+    workspace_dict['workspace_packages'] = workspace_packages
+    return workspace_dict
+
+# Process the given configuration file
+def process_configuration_file(config_file_path: str):
+    if not os.path.exists(config_file_path):
+        raise RuntimeError(
+            'Configuration file not existing. Process will be abandoned')
+
+    # Parse the configuration file
+    with open(config_file_path) as f:
+        configuration = yaml.load(f, Loader=yaml.FullLoader)
+
+    process_ROS_distro(configuration)
+    process_pipeline_operations(configuration)
+    process_docker_ros_image(configuration)
+    process_external_packages(configuration)
+    process_binaries_generation(configuration)
+
+    return configuration
+
+def main():
+    args = parse_args()
+    
+    configuration = process_configuration_file(args.config_file)
+
+    configuration.update(process_workspace_folder(args.workspace_folder))
+    configuration.update(process_destination_folder(args.destination_folder, 
+                                                    configuration['workspace_folder']))
+    
+    generate_build_test_process(configuration)
+    
+    # TODO: Uncomment
+    # if configuration['generate_binaries']:
+        # generate_binaries(configuration)
+
+    print('Generate the main script')
+    generate_rendered_template(configuration, 'main_script.sh.tem')
+
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except Exception as e:
+        sys.exit(str(e))

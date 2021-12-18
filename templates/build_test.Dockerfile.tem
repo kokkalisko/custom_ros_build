@@ -1,15 +1,20 @@
-FROM ros:{{ ros_distro }}-ros-core
+FROM {{ docker_ros_image }}
 
 # Install rosdep and build-essential
 RUN apt-get update
 RUN apt-get install -y build-essential python3-rosdep
 
-# ADD diakinisis_room /home/vital_gazebo_ws/src/diakinisis_room
-# WORKDIR /home/vital_gazebo_ws/
+ADD src /tmp/custom_ros_build/src
+
+# Change directory to the workspace parent folder
+WORKDIR /tmp/custom_ros_build/
 
 # Install ROS dependencies
 RUN rosdep init && rosdep update
 RUN rosdep install --from-paths src --ignore-src -r -y
 
-# Build packages
-RUN . /opt/ros/{{ ros_distro }}/setup.sh && catkin_make
+# Setup entrypoint
+COPY {{ destination_folder_workspace_relative }}/ros_entrypoint.sh /
+
+ENTRYPOINT ["/ros_entrypoint.sh"]
+CMD ["bash"]
